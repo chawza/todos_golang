@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+</head>
+<body>
+    <h1>welcome to Go todo</h1> 
+    <form method="POST">
+        <input type="text" name="title" placeholder="task name">
+        <input type="text" name="description" placeholder="task desc">
+        <button type="submit">add</button>
+    </form>
+
+    {{ if len .Tasks }}
+        <ul>
+            {{range $i, $task := .Tasks}}
+                <li>
+                    <span>{{$task.Title}}</span>
+                    <span>{{$task.Description}}</span>
+                    <form method="POST" action="/tasks/{{$i}}/delete">
+                        <input type="text" hidden value="{{$i}}">
+                        <button type="submit">delete</button>
+                    </form>
+                </li>
+            {{end}}
+        </ul>
+    {{end}}
+</body>
+</html>
