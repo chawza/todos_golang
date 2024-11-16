@@ -1,0 +1,26 @@
+body {
+    max-width: 40rem;
+    margin: 0 auto 0 auto;
+}
+
+body > * {
+    width: 100%;
+}
+
+form > * { 
+    width: 100%;    
+    margin-bottom: 1rem;
+}
+
+ul.task-list {
+    padding: 0;
+    
+    > li {
+        list-style: none;
+
+        > * {
+            display: inline-block;
+            width: fit-content;
+        }
+    }
+}
