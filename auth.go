@@ -54,10 +54,13 @@ func (r UserRepostiory) CountAll() int {
 }
 
 func (r UserRepostiory) add(username string, password string) (int, error) {
+	hashed_password := hashPassword(password)
+
+	fmt.Println("Add: ", hashed_password)
 	result, err := r.DB.Exec(
 		fmt.Sprintf(
 			`INSERT INTO users (username, password) VALUES ("%s", "%s");`,
-			username, password,
+			username, hashPassword(password),
 		),
 	)
 
@@ -91,23 +94,17 @@ func hashPassword(raw_password string) string {
 	return string(password)
 }
 
-func passwordIsValid(raw_password string, target string) bool {
+func PasswordIsValid(raw_password string, target string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(target), []byte(raw_password))
+	return err == nil
 
-	if err != nil {
-		return false
-	}
-
-	return true
 }
 
-func (r UserRepostiory) authenticate(username string, raw_password string) (int, error) {
-	hashedPassword := hashPassword(raw_password)
+func (r UserRepostiory) Authenticate(username string, rawPassword string) (int, error) {
 
 	result, err := r.DB.Query(
 		fmt.Sprintf(
-			`SELECT rowid FROM users WHERE username="%s" AND password="%s"`,
-			username, hashedPassword,
+			`SELECT rowid FROM users WHERE username="%s"`, username,
 		),
 	)
 
@@ -115,17 +112,27 @@ func (r UserRepostiory) authenticate(username string, raw_password string) (int,
 		return 0, err
 	}
 
+	var userid int
 	for result.Next() {
-		var userid int
 		if result.Scan(&userid) != nil {
+			user, err := r.GetById(userid)
+
+			if err != nil {
+				panic(err)
+			}
+
+			if !PasswordIsValid(rawPassword, user.Password) {
+				return 0, errors.New("invalid crendentials")
+			}
+
 			return userid, nil
 		}
 	}
 
-	return 0, errors.New("NO USER FOUND")
+	return 0, errors.New("no user found with username")
 }
 
-func (r UserRepostiory) getById(id int) (User, error) {
+func (r *UserRepostiory) GetById(id int) (User, error) {
 	result, err := r.DB.Query(
 		fmt.Sprintf(
 			`SELECT (username, password) users WHERE rowid="%d"`, id,

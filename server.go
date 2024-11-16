@@ -58,10 +58,29 @@ func main() {
 	UserRepo = &UserRepostiory{DB: DB}
 	UserSession = &SessionManager{DB: DB}
 
+	err = UserRepo.SetupTable()
+
+	if err != nil {
+		panic(err)
+	}
+
 	err = UserSession.SetupSessionTable()
 
 	if err != nil {
 		panic(err)
+	}
+
+	// UserRepo.DeleteById(1)
+
+	// setup admin if not exist
+	if UserRepo.CountAll() < 1 {
+		InfoLogger.Println("Setup Admin")
+
+		var adminPassword string
+		fmt.Print("Admin pasword: ")
+		fmt.Scan(&adminPassword)
+
+		UserRepo.add("admin", adminPassword)
 	}
 
 	// views
@@ -97,18 +116,47 @@ func main() {
 	})
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST api/auth/login", func(w http.ResponseWriter, r *http.Request) {
-		username := r.PathValue("username")
-		password := r.PathValue("password")
+	mux.HandleFunc("POST /api/auth/login", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		username := q.Get("username")
+		password := q.Get("password")
 
-		if len(username) == 0 || len(password) != 0 {
-			// error status 400?
+		if len(username) == 0 || len(password) == 0 {
+			responsePayload, err := json.Marshal(
+				struct {
+					Message string `json:"message"`
+				}{
+					Message: "Credential is required",
+				},
+			)
+
+			if err != nil {
+				panic(err)
+			}
+
+			w.Write(responsePayload)
+			return
 		}
 
-		user_id, err := UserRepo.authenticate(username, password)
+		user_id, err := UserRepo.Authenticate(username, password)
 
 		if err != nil {
-			panic(err)
+			ErrorLogger.Println(`Auth: `, err.Error())
+
+			responsePayload, err := json.Marshal(
+				struct {
+					Message string `json:"message"`
+				}{
+					Message: "Credential is Invalid",
+				},
+			)
+
+			if err != nil {
+				panic(err)
+			}
+
+			w.Write(responsePayload)
+			return
 		}
 
 		user_session, err := UserSession.CreateSession(user_id)
@@ -139,7 +187,7 @@ func main() {
 	// http.ListenAndServe(":8000", nil)
 
 	server := &http.Server{Addr: "127.0.0.1:8000", Handler: mux}
-	InfoLogger.Println(fmt.Sprint("Listeningn in ", server.Addr))
+	InfoLogger.Println(fmt.Sprint("Listening in ", server.Addr))
 	server.ListenAndServe()
 }
 
