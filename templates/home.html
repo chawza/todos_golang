@@ -17,10 +17,12 @@
     {{ if len .Tasks }}
         <ul class="task-list">
             {{range $i, $task := .Tasks}}
-                <li>
-                    <span>{{$task.Title}}</span>
-                    <span>{{$task.Description}}</span>
-                    <form method="POST" action="/tasks/{{$task.Rowid}}/delete">
+                <li class="task-item">
+                    <div class="content">
+                        <h6>{{$task.Title}}</h6>
+                        <span>{{$task.Description}}</span>
+                    </div>
+                    <form class="delete" method="POST" action="/tasks/{{$task.Rowid}}/delete">
                         <input type="text" hidden value="{{$task.Rowid}}">
                         <button type="submit">delete</button>
                     </form>

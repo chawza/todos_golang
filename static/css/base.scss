@@ -17,10 +17,19 @@ ul.task-list {
     
     > li {
         list-style: none;
+        display: flex;
+        flex-direction: row;
 
-        > * {
-            display: inline-block;
-            width: fit-content;
+        div.content {
+            flex-grow: 1;
+
+            h6 {
+                margin: 0;
+            }
+        }
+
+        form.delete {
+           width: fit-content; 
         }
     }
 }
