@@ -19,7 +19,8 @@ type UserRepostiory struct {
 	DB *sql.DB
 }
 
-func (r UserRepostiory) createDB() error {
+func (r UserRepostiory) SetupTable() error {
+	InfoLogger.Println("Setting up 'users' table")
 	_, err := DB.Exec("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT);")
 
 	if err != nil {
@@ -27,6 +28,29 @@ func (r UserRepostiory) createDB() error {
 	}
 
 	return nil
+}
+
+func (r UserRepostiory) CountAll() int {
+	result, err := r.DB.Query("SELECT Count(*) FROM users;")
+
+	if err != nil {
+		panic(err)
+	}
+
+	var count int
+
+	if !result.Next() {
+		panic(errors.New("unable to count users row"))
+	}
+
+	err = result.Scan(&count)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return count
+
 }
 
 func (r UserRepostiory) add(username string, password string) (int, error) {
@@ -48,6 +72,15 @@ func (r UserRepostiory) add(username string, password string) (int, error) {
 	}
 
 	return int(insertedId), nil
+}
+
+func (r UserRepostiory) DeleteById(rowid int) error {
+	_, err := r.DB.Exec(
+		fmt.Sprintf(
+			`DELETE FROM users WHERE rowid=%d;`, rowid,
+		),
+	)
+	return err
 }
 
 func hashPassword(raw_password string) string {
@@ -73,7 +106,7 @@ func (r UserRepostiory) authenticate(username string, raw_password string) (int,
 
 	result, err := r.DB.Query(
 		fmt.Sprintf(
-			`SELECT rowid users WHERE username="%s" AND password="%s"`,
+			`SELECT rowid FROM users WHERE username="%s" AND password="%s"`,
 			username, hashedPassword,
 		),
 	)
