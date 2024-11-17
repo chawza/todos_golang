@@ -37,6 +37,8 @@ func (r UserRepostiory) CountAll() int {
 		panic(err)
 	}
 
+	defer result.Close()
+
 	var count int
 
 	if !result.Next() {
@@ -53,10 +55,7 @@ func (r UserRepostiory) CountAll() int {
 
 }
 
-func (r UserRepostiory) add(username string, password string) (int, error) {
-	hashed_password := hashPassword(password)
-
-	fmt.Println("Add: ", hashed_password)
+func (r UserRepostiory) Add(username string, password string) (int, error) {
 	result, err := r.DB.Exec(
 		fmt.Sprintf(
 			`INSERT INTO users (username, password) VALUES ("%s", "%s");`,
@@ -75,6 +74,10 @@ func (r UserRepostiory) add(username string, password string) (int, error) {
 	}
 
 	return int(insertedId), nil
+}
+
+func (r UserRepostiory) CreateSuperUser(username string, password string) (int, error) {
+	return r.Add(username, password)
 }
 
 func (r UserRepostiory) DeleteById(rowid int) error {
@@ -112,49 +115,50 @@ func (r UserRepostiory) Authenticate(username string, rawPassword string) (int, 
 		return 0, err
 	}
 
-	var userid int
-	for result.Next() {
-		if result.Scan(&userid) != nil {
-			user, err := r.GetById(userid)
+	defer result.Close()
 
-			if err != nil {
-				panic(err)
-			}
-
-			if !PasswordIsValid(rawPassword, user.Password) {
-				return 0, errors.New("invalid crendentials")
-			}
-
-			return userid, nil
-		}
+	if !result.Next() {
+		return 0, errors.New("no user found with username")
 	}
 
-	return 0, errors.New("no user found with username")
+	var userid int
+	result.Scan(&userid)
+
+	user, err := r.GetById(userid)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if !PasswordIsValid(rawPassword, user.Password) {
+		return 0, errors.New("invalid crendentials")
+	}
+
+	return userid, nil
 }
 
 func (r *UserRepostiory) GetById(id int) (User, error) {
 	result, err := r.DB.Query(
 		fmt.Sprintf(
-			`SELECT (username, password) users WHERE rowid="%d"`, id,
+			`SELECT username, password FROM users WHERE rowid=%d`, id,
 		),
 	)
 
 	if err != nil {
-		return User{}, err
+		panic(err)
 	}
 
-	for result.Next() {
-		var username string
-		var password string
-		if result.Scan(&username, &password) != nil {
-			user := User{
-				Username: username,
-				Password: password,
-			}
+	defer result.Close()
 
-			return user, nil
+	var username string
+	var password string
+	for result.Next() {
+		result.Scan(&username, &password)
+		user := User{
+			Username: username,
+			Password: password,
 		}
-		break
+		return user, nil
 	}
 
 	return User{}, errors.New("NO USER FOUND")
@@ -205,4 +209,26 @@ func (s *SessionManager) FindUserIdByKey(key string) (int, error) {
 	}
 
 	return 0, ErrUserNotFound
+}
+
+func PromptToCreateSuperUser() {
+	InfoLogger.Println("Setup Admin")
+
+	var inputPasword string
+	fmt.Print("Admin password: ")
+	fmt.Scan(&inputPasword)
+
+	adminId, err := UserRepo.Add("admin", inputPasword)
+
+	if err != nil {
+		panic(err)
+	}
+
+	admin, err := UserRepo.GetById(adminId)
+
+	if err != nil {
+		panic(err)
+	}
+
+	InfoLogger.Println("Admin created by username: ", admin.Username)
 }

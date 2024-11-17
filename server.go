@@ -74,16 +74,10 @@ func main() {
 
 	// setup admin if not exist
 	if UserRepo.CountAll() < 1 {
-		InfoLogger.Println("Setup Admin")
-
-		var adminPassword string
-		fmt.Print("Admin pasword: ")
-		fmt.Scan(&adminPassword)
-
-		UserRepo.add("admin", adminPassword)
+		PromptToCreateSuperUser()
 	}
 
-	// views
+	// starts dead code
 	http.HandleFunc("/home", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			homeTempl.Execute(
@@ -114,6 +108,7 @@ func main() {
 			logRequest(r)
 		}
 	})
+	// ends dead code
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/auth/login", func(w http.ResponseWriter, r *http.Request) {
@@ -181,10 +176,6 @@ func main() {
 
 		w.Write(bodyPayload)
 	})
-
-	// fileServer := http.FileServer(http.Dir("static/"))
-	// http.Handle("/static/", http.StripPrefix("/static/", fileServer))
-	// http.ListenAndServe(":8000", nil)
 
 	server := &http.Server{Addr: "127.0.0.1:8000", Handler: mux}
 	InfoLogger.Println(fmt.Sprint("Listening in ", server.Addr))
