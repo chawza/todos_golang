@@ -176,10 +176,12 @@ func (s *SessionManager) SetupSessionTable() error {
 }
 
 func (s *SessionManager) CreateSession(user_id int) (string, error) {
+	s.ClearSession(user_id)
+
 	uuid := uuid.New()
 	token := uuid.String()
 
-	query := `INSERT INTO sessions (user_id, key) VALUES ("%d", "%s")`
+	query := `INSERT INTO sessions (user_id, key) VALUES ($1, "$2");`
 	_, err := s.DB.Exec(query, user_id, token)
 
 	if err != nil {
@@ -187,6 +189,28 @@ func (s *SessionManager) CreateSession(user_id int) (string, error) {
 	}
 
 	return token, nil
+}
+func (s *SessionManager) ClearSession(user_id int) {
+	query := `SELECT rowid FROM sessions WHERE user_id=$1;`
+	result, err := s.DB.Query(query, user_id)
+
+	if err != nil {
+		panic(err)
+	}
+
+	result.Close()
+
+	isCached := result.Next()
+
+	if !isCached {
+		return
+	}
+
+	_, err = s.DB.Exec(`DELETE FROM sessions WHERE user_id=$1;`, user_id)
+
+	if err != nil {
+		panic(err)
+	}
 }
 
 var ErrUserNotFound = errors.New("User Not Found")

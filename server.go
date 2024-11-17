@@ -117,19 +117,7 @@ func main() {
 		password := q.Get("password")
 
 		if len(username) == 0 || len(password) == 0 {
-			responsePayload, err := json.Marshal(
-				struct {
-					Message string `json:"message"`
-				}{
-					Message: "Credential is required",
-				},
-			)
-
-			if err != nil {
-				panic(err)
-			}
-
-			w.Write(responsePayload)
+			WriteClientError(w, ClientError{Message: "Credential is required"})
 			return
 		}
 
@@ -137,20 +125,7 @@ func main() {
 
 		if err != nil {
 			ErrorLogger.Println(`Auth: `, err.Error())
-
-			responsePayload, err := json.Marshal(
-				struct {
-					Message string `json:"message"`
-				}{
-					Message: "Credential is Invalid",
-				},
-			)
-
-			if err != nil {
-				panic(err)
-			}
-
-			w.Write(responsePayload)
+			WriteClientError(w, ClientError{Message: "Credential is Invalid"})
 			return
 		}
 
@@ -158,6 +133,10 @@ func main() {
 
 		if err != nil {
 			panic(err)
+		}
+
+		type LoginData struct {
+			Token string `json:"token"`
 		}
 
 		bodyPayload, err := json.Marshal(
@@ -180,8 +159,4 @@ func main() {
 	server := &http.Server{Addr: "127.0.0.1:8000", Handler: mux}
 	InfoLogger.Println(fmt.Sprint("Listening in ", server.Addr))
 	server.ListenAndServe()
-}
-
-type LoginData struct {
-	Token string `json:"token"`
 }
