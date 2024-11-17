@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
@@ -110,51 +109,10 @@ func main() {
 	})
 	// ends dead code
 
+	authApi := AuthApi{}
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/auth/login", func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query()
-		username := q.Get("username")
-		password := q.Get("password")
-
-		if len(username) == 0 || len(password) == 0 {
-			WriteClientError(w, ClientError{Message: "Credential is required"})
-			return
-		}
-
-		user_id, err := UserRepo.Authenticate(username, password)
-
-		if err != nil {
-			ErrorLogger.Println(`Auth: `, err.Error())
-			WriteClientError(w, ClientError{Message: "Credential is Invalid"})
-			return
-		}
-
-		user_session, err := UserSession.CreateSession(user_id)
-
-		if err != nil {
-			panic(err)
-		}
-
-		type LoginData struct {
-			Token string `json:"token"`
-		}
-
-		bodyPayload, err := json.Marshal(
-			struct {
-				Data LoginData `json:"data"`
-			}{
-				Data: LoginData{
-					Token: user_session,
-				},
-			},
-		)
-
-		if err != nil {
-
-		}
-
-		w.Write(bodyPayload)
-	})
+	mux.HandleFunc("POST /api/auth/login", authApi.Login)
 
 	server := &http.Server{Addr: "127.0.0.1:8000", Handler: mux}
 	InfoLogger.Println(fmt.Sprint("Listening in ", server.Addr))

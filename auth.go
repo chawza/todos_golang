@@ -2,8 +2,10 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -255,4 +257,53 @@ func PromptToCreateSuperUser() {
 	}
 
 	InfoLogger.Println("Admin created by username: ", admin.Username)
+}
+
+type AuthApi struct {
+}
+
+// API
+func (*AuthApi) Login(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	username := q.Get("username")
+	password := q.Get("password")
+
+	if len(username) == 0 || len(password) == 0 {
+		WriteClientError(w, ClientError{Message: "Credential is required"})
+		return
+	}
+
+	user_id, err := UserRepo.Authenticate(username, password)
+
+	if err != nil {
+		ErrorLogger.Println(`Auth: `, err.Error())
+		WriteClientError(w, ClientError{Message: "Credential is Invalid"})
+		return
+	}
+
+	user_session, err := UserSession.CreateSession(user_id)
+
+	if err != nil {
+		panic(err)
+	}
+
+	type LoginData struct {
+		Token string `json:"token"`
+	}
+
+	bodyPayload, err := json.Marshal(
+		struct {
+			Data LoginData `json:"data"`
+		}{
+			Data: LoginData{
+				Token: user_session,
+			},
+		},
+	)
+
+	if err != nil {
+
+	}
+
+	w.Write(bodyPayload)
 }
