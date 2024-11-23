@@ -24,5 +24,6 @@ func WriteClientError(w http.ResponseWriter, error ClientError) {
 		panic(err)
 	}
 
+	w.WriteHeader(error.Status)
 	w.Write(responsePayload)
 }

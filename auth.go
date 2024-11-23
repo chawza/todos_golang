@@ -218,7 +218,7 @@ func (s *SessionManager) ClearSession(user_id int) {
 var ErrUserNotFound = errors.New("User Not Found")
 
 func (s *SessionManager) FindUserIdByKey(key string) (int, error) {
-	query := `SELECT rowid FROM sessions WHERE key="%s"`
+	query := `SELECT user_id FROM sessions WHERE key="$1"`
 	rows, err := s.DB.Query(query, key)
 
 	if err != nil {
@@ -235,6 +235,16 @@ func (s *SessionManager) FindUserIdByKey(key string) (int, error) {
 	}
 
 	return 0, ErrUserNotFound
+}
+
+func (s *SessionManager) GetUserByToken(token string) (User, error) {
+	userId, err := s.FindUserIdByKey(token)
+
+	if err != nil {
+		return User{}, err
+	}
+
+	return UserRepo.GetById(userId)
 }
 
 func PromptToCreateSuperUser() {
@@ -259,6 +269,22 @@ func PromptToCreateSuperUser() {
 	InfoLogger.Println("Admin created by username: ", admin.Username)
 }
 
+func GetUserByRequest(r *http.Request) (User, error) {
+	token := r.URL.Query().Get("token")
+
+	if len(token) == 0 {
+		return User{}, errors.New("token not provided")
+	}
+
+	user, err := UserSession.GetUserByToken(token)
+
+	if err != nil {
+		return User{}, err
+	}
+
+	return user, nil
+}
+
 type AuthApi struct {
 }
 
@@ -281,7 +307,7 @@ func (*AuthApi) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user_session, err := UserSession.CreateSession(user_id)
+	userToken, err := UserSession.CreateSession(user_id)
 
 	if err != nil {
 		panic(err)
@@ -292,17 +318,36 @@ func (*AuthApi) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bodyPayload, err := json.Marshal(
-		struct {
-			Data LoginData `json:"data"`
-		}{
-			Data: LoginData{
-				Token: user_session,
-			},
+		LoginData{
+			Token: userToken,
 		},
 	)
 
 	if err != nil {
 
+	}
+
+	w.Write(bodyPayload)
+}
+
+func (*AuthApi) Logout(w http.ResponseWriter, r *http.Request) {
+	user, err := GetUserByRequest(r)
+
+	if err != nil {
+		WriteClientError(w, ClientError{Message: err.Error()})
+		return
+	}
+
+	UserSession.ClearSession(user.RowId)
+
+	bodyPayload, err := json.Marshal(
+		LoginData{
+			Token: userToken,
+		},
+	)
+
+	if err != nil {
+		panic(err)
 	}
 
 	w.Write(bodyPayload)
